@@ -14,9 +14,10 @@ RUN python src/train.py
 
 # Chạy test ngay trong môi trường Linux của image: docker build --target test .
 FROM builder AS test
-COPY requirements-dev.txt .
+COPY requirements-web.txt requirements-dev.txt ./
 RUN pip install -r requirements-dev.txt
 COPY src/ src/
+COPY web/ web/
 COPY tests/ tests/
 COPY pytest.ini .
 RUN python -m pytest -q -p no:cacheprovider
@@ -24,7 +25,7 @@ RUN python -m pytest -q -p no:cacheprovider
 # Image cuối: chỉ có thư viện, API và mô hình; không có CSV khách hàng hay code train.
 FROM base AS runtime
 RUN useradd --create-home --uid 1000 app
-COPY src/app.py src/
+COPY src/app.py src/schema.py src/
 COPY --from=builder /app/model/ model/
 USER app
 EXPOSE 8080

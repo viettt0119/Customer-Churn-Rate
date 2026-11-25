@@ -2,11 +2,11 @@
 
 Từ dữ liệu thô đến REST API chạy trong Docker, với trọng tâm là **đánh giá trung thực**: tập test chỉ dùng để đo, mọi lựa chọn về mô hình đều làm trên tập train.
 
-**Kết quả chính:** nếu chỉ đủ nguồn lực liên hệ 20% khách hàng, mô hình giúp gặp **48%** số khách sẽ rời đi, gấp **2.4 lần** gọi ngẫu nhiên.
+**Kết quả chính:** nếu chỉ đủ nguồn lực liên hệ 20% khách hàng, mô hình Logistic Regression giúp gặp **48%** số khách sẽ rời đi, gấp **2.4 lần** gọi ngẫu nhiên. XGBoost trong bản web đạt **51%**.
 
 ![Đường gains trên tập test](docs/gains.png)
 
-`Python 3.12` · `scikit-learn` · `FastAPI` · `Pydantic` · `pytest` · `Docker`
+`Python 3.12` · `scikit-learn` · `XGBoost` · `imbalanced-learn` · `FastAPI` · `Flask` · `Pydantic` · `pytest` · `Docker` · `PWA`
 
 ## 1. Bài toán
 
@@ -17,6 +17,8 @@ Nhà mạng muốn giữ chân khách trước khi họ hủy dịch vụ, nhưn
 - **Vì sao không chỉ nhìn accuracy:** luôn đoán "không rời" đã đạt 73.5% mà không tìm được khách nào.
 
 ## 2. Kết quả trên tập test (1409 khách)
+
+Mô hình chính của API là Logistic Regression:
 
 | Chỉ số | Mô hình | Mốc so sánh |
 |---|---|---|
@@ -76,16 +78,59 @@ Bắt thêm 75 khách churn, đổi lại báo nhầm thêm 108 khách. Ngưỡn
 - Đo xong mới refit trên toàn bộ dữ liệu để xuất xưởng. Điểm báo cáo là của mô hình **trước** refit.
 - Có test tự động kiểm tra rằng dòng test không lọt vào bước chọn feature và chọn ngưỡng.
 
+### Thử XGBoost và SMOTE
+
+Cross-validation trên train, cùng 8 feature. Áp dụng lại quy tắc chọn ở trên:
+
+| Mô hình | PR-AUC | ROC-AUC | Brier (thấp là tốt) |
+|---|---|---|---|
+| Logistic Regression | 0.645 | 0.841 | 0.138 |
+| Logistic Regression + SMOTE | 0.646 | 0.841 | 0.167 |
+| **XGBoost, độ sâu 2 (được chọn)** | **0.659** | **0.847** | **0.135** |
+| XGBoost, độ sâu 4 | 0.661 | 0.846 | 0.135 |
+| XGBoost + trọng số lớp | 0.658 | 0.846 | 0.163 |
+| XGBoost + SMOTE | 0.659 | 0.845 | 0.162 |
+
+SMOTE (chỉ áp dụng bên trong fold train) và trọng số lớp **không cải thiện xếp hạng** mà làm xác suất kém chính xác, nên không dùng. Trên tập test:
+
+| Mô hình | PR-AUC | ROC-AUC | Precision | Recall | F1 |
+|---|---|---|---|---|---|
+| XGBoost (ngưỡng 0.3067) | **0.667** | **0.846** | 54.1% | **78.3%** | **0.640** |
+| Logistic Regression (ngưỡng 0.3414) | 0.628 | 0.837 | 54.5% | 72.2% | 0.621 |
+
+Tập test được dùng lần thứ hai cho so sánh này, nhưng việc chọn mô hình và ngưỡng vẫn chỉ dựa trên train.
+
 ## 5. Kỹ thuật phần mềm
 
 - **API chặt chẽ:** từ chối giá trị lạ và dữ liệu mâu thuẫn (ví dụ không có Internet nhưng có `TechSupport`) thay vì âm thầm dự đoán sai. Số nằm ngoài khoảng đã học thì vẫn dự đoán, kèm cảnh báo.
 - **Hỏng sớm:** server không khởi động nếu thiếu mô hình, lệch phiên bản scikit-learn, hoặc mô hình không khớp schema của API.
-- **89 test tự động**, chạy được cả trong image Linux.
-- **Thử độ tin cậy của bộ test:** cố tình cài 28 lỗi vào code. Lần đầu bộ test bắt được 26; hai lỗi lọt liên quan đến leakage và refit, và đều bị bắt sau khi bổ sung test.
+- **167 test tự động**, chạy được cả trong image Linux.
+- **Thử độ tin cậy của bộ test:** cố tình cài 28 lỗi vào code của API và phần huấn luyện Logistic Regression. Lần đầu bộ test bắt được 26; hai lỗi lọt liên quan đến leakage và refit, và đều bị bắt sau khi bổ sung test.
 - **Lỗi thật do test tìm ra:** gửi `NaN` làm server trả 500. Đã sửa thành 422, và thông báo lỗi không còn chép lại dữ liệu khách hàng.
 - **Docker nhiều tầng:** train lúc build; image cuối không chứa CSV hay code train, không chạy bằng root.
 
 ## 6. Chạy thử
+
+### Bản web (Flask)
+
+```powershell
+.venv\Scripts\python.exe web/server.py
+```
+
+Mở `http://127.0.0.1:5000`. Giao diện glassmorphism, cài được như ứng dụng (PWA) và xem được phần phân tích khi mất mạng.
+
+- Chọn XGBoost hoặc Logistic Regression.
+- Giải thích từng dự đoán: XGBoost dùng SHAP, Logistic Regression dùng hệ số; tổng các phần đúng bằng kết quả dự đoán.
+- Rủi ro theo thời gian gắn bó, và các biểu đồ phân tích (Plotly.js, Chart.js).
+- Mọi thư viện giao diện nằm trong repo, không tải từ bên ngoài; trang chặn script lạ bằng Content Security Policy.
+
+| Endpoint | Chức năng |
+|---|---|
+| `POST /api/predict` | Dự đoán kèm giải thích |
+| `POST /api/tenure-curve` | Rủi ro theo số tháng gắn bó |
+| `GET /api/models`, `/api/insights`, `/api/options`, `/api/health` | Thông tin mô hình, số liệu biểu đồ, giá trị hợp lệ, trạng thái |
+
+### API (FastAPI, Docker)
 
 Cần Docker. Từ thư mục gốc của repo:
 
@@ -123,6 +168,7 @@ Phát triển trên máy (Windows, Python 3.12):
 py -3.12 -m venv .venv
 .venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 .venv\Scripts\python.exe src/train.py    # tạo model/model.pkl và metrics.json
+.venv\Scripts\python.exe src/train_web.py    # so sánh XGBoost, SMOTE; tạo file cho bản web
 .venv\Scripts\python.exe src/report.py   # tạo hình và số liệu của README
 .venv\Scripts\python.exe -m pytest -q
 ```
@@ -132,9 +178,11 @@ py -3.12 -m venv .venv
 ```text
 data/        Telco-Customer-Churn.csv
 notebooks/   01_eda.ipynb
-src/         train.py (huấn luyện) · app.py (API) · report.py (hình và số liệu)
-tests/       test_api.py · test_bundle.py · test_train.py
-model/       model.pkl · metrics.json
+src/         train.py (Logistic) · train_web.py (XGBoost, SMOTE) · schema.py (kiểm tra dữ liệu)
+             app.py (FastAPI) · report.py (hình và số liệu)
+web/         server.py (Flask) · churn_models.py · templates/ · static/
+tests/       test_api.py · test_bundle.py · test_train.py · test_web.py
+model/       model.pkl · xgb_preprocessor.pkl · xgb_model.json · web_meta.json · insights.json · metrics.json
 docs/        hình trong README
 Dockerfile
 ```
@@ -145,6 +193,6 @@ Dockerfile
 - **Tương quan, không phải nhân quả:** mô hình cho biết ai dễ rời, không cho biết voucher có giữ được họ. Cần A/B test.
 - **Dữ liệu hư cấu:** kết quả không áp dụng thẳng cho nhà mạng thật.
 - **Tập test không tuyệt đối sạch:** tỷ lệ churn theo nhóm của 4 cột từng được xem trên toàn bộ dữ liệu khi kiểm tra file, và 7 dòng test trùng với train nếu bỏ `customerID`. Ảnh hưởng được đánh giá là nhỏ.
-- **API chưa có** xác thực, giới hạn lượt gọi hay theo dõi data drift.
+- **API và bản web chưa có** xác thực, giới hạn lượt gọi hay theo dõi data drift.
 - **Chưa quản lý phiên bản mô hình:** mỗi lần train ghi đè bản cũ.
-- **Tiếp theo:** chọn ngưỡng theo chi phí thật, so sánh với gradient boosting, kiểm tra sai lệch giữa các nhóm khách (ví dụ người cao tuổi).
+- **Tiếp theo:** chọn ngưỡng theo chi phí thật, đóng gói bản web bằng Docker, kiểm tra sai lệch giữa các nhóm khách (ví dụ người cao tuổi).

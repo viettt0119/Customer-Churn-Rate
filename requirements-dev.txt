@@ -1,5 +1,6 @@
--r requirements.txt
+-r requirements-web.txt
 httpx2==2.16.2
 ipykernel==7.4.0
 matplotlib==3.11.2
+pillow==13.0.0
 pytest==9.2.0

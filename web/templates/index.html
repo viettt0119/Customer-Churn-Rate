@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Churn Radar</title>
+  <meta name="description" content="Dự đoán khách hàng rời mạng">
+  <meta name="theme-color" content="#0d1220">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" type="image/png" href="/static/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+  <link rel="stylesheet" href="/static/vendor/fontawesome/css/fontawesome.min.css?v={{ version }}">
+  <link rel="stylesheet" href="/static/vendor/fontawesome/css/solid.min.css?v={{ version }}">
+  <link rel="stylesheet" href="/static/css/style.css?v={{ version }}">
+</head>
+<body>
+  <div class="backdrop" aria-hidden="true"><i></i><i></i><i></i></div>
+
+  <header class="topbar glass">
+    <div class="brand"><i class="fa-solid fa-tower-broadcast" aria-hidden="true"></i><span>Churn Radar</span></div>
+    <nav aria-label="Điều hướng">
+      <a href="#predict"><i class="fa-solid fa-user-check" aria-hidden="true"></i><span>Dự đoán</span></a>
+      <a href="#insights"><i class="fa-solid fa-chart-column" aria-hidden="true"></i><span>Phân tích</span></a>
+      <button id="install" class="ghost" type="button" hidden><i class="fa-solid fa-download" aria-hidden="true"></i><span>Cài ứng dụng</span></button>
+    </nav>
+  </header>
+
+  <div id="offline" class="banner" role="status" hidden>
+    <i class="fa-solid fa-plug-circle-xmark" aria-hidden="true"></i>
+    Đang ngoại tuyến. Vẫn xem được phân tích đã lưu, nhưng dự đoán cần kết nối.
+  </div>
+
+  <main>
+    <section id="predict" class="grid predict">
+      <form id="form" class="card glass" novalidate>
+        <h2><i class="fa-solid fa-user" aria-hidden="true"></i> Thông tin khách hàng</h2>
+
+        <div class="presets" role="group" aria-label="Khách mẫu">
+          <button type="button" class="chip" data-preset="high">Khách mới, rủi ro cao</button>
+          <button type="button" class="chip" data-preset="low">Khách lâu năm, rủi ro thấp</button>
+        </div>
+
+        <div class="field">
+          <label for="tenure">Số tháng gắn bó <output id="tenure-out"></output></label>
+          <input id="tenure" name="tenure" type="range" min="0" max="72" step="1" value="2">
+        </div>
+        <div class="field">
+          <label for="MonthlyCharges">Tiền mỗi tháng (USD)</label>
+          <input id="MonthlyCharges" name="MonthlyCharges" type="number" inputmode="decimal" min="0.01" step="0.01" value="95">
+        </div>
+        <div class="field"><label for="Contract">Hợp đồng</label><select id="Contract" name="Contract"></select></div>
+        <div class="field"><label for="InternetService">Internet</label><select id="InternetService" name="InternetService"></select></div>
+        <div class="field"><label for="OnlineSecurity">Bảo mật trực tuyến</label><select id="OnlineSecurity" name="OnlineSecurity"></select></div>
+        <div class="field"><label for="TechSupport">Hỗ trợ kỹ thuật</label><select id="TechSupport" name="TechSupport"></select></div>
+        <div class="field"><label for="PaymentMethod">Thanh toán</label><select id="PaymentMethod" name="PaymentMethod"></select></div>
+        <div class="field"><label for="SeniorCitizen">Người cao tuổi</label>
+          <select id="SeniorCitizen" name="SeniorCitizen"><option value="0">Không</option><option value="1">Có</option></select></div>
+        <div class="field wide"><label for="model">Mô hình</label><select id="model" name="model"></select></div>
+
+        <p id="form-error" class="error" role="alert" hidden></p>
+        <button id="submit" class="primary wide" type="submit"><i class="fa-solid fa-bolt" aria-hidden="true"></i> Dự đoán</button>
+      </form>
+
+      <div class="results" aria-live="polite">
+        <article class="card glass verdict">
+          <div class="gauge"><canvas id="gauge" role="img" aria-label="Xác suất rời mạng"></canvas>
+            <div class="gauge-text"><strong id="prob">–</strong><span>xác suất rời mạng</span></div></div>
+          <div>
+            <p id="label" class="status"><i class="fa-solid fa-circle-question" aria-hidden="true"></i><span>Chưa có dự đoán</span></p>
+            <p id="detail" class="muted">Nhập thông tin khách hàng rồi bấm Dự đoán.</p>
+            <ul id="warnings" class="warnings"></ul>
+          </div>
+        </article>
+
+        <article class="card glass">
+          <h3>Vì sao mô hình đoán như vậy?</h3>
+          <p class="muted">Mỗi thanh cho biết yếu tố đẩy rủi ro lên hay kéo xuống so với điểm xuất phát của mô hình (đơn vị log-odds).</p>
+          <div id="contrib" class="plot"></div>
+        </article>
+
+        <article class="card glass">
+          <h3>Rủi ro theo thời gian gắn bó</h3>
+          <p class="muted">Giữ nguyên các thông tin khác, chỉ đổi số tháng. Đây là tương quan, không phải dự báo tương lai.</p>
+          <div class="chart"><canvas id="curve" role="img" aria-label="Xác suất rời mạng theo số tháng gắn bó"></canvas></div>
+        </article>
+      </div>
+    </section>
+
+    <section id="insights">
+      <h2 class="section-title"><i class="fa-solid fa-chart-column" aria-hidden="true"></i> Phân tích và mô hình</h2>
+      <div id="kpis" class="kpis"></div>
+      <div class="grid two">
+        <article class="card glass"><h3>Churn theo hợp đồng và Internet</h3><p class="muted">Tỷ lệ rời mạng trên tập train.</p><div id="heatmap" class="plot"></div></article>
+        <article class="card glass"><h3>Churn theo thời gian gắn bó</h3><p class="muted">Tỷ lệ rời mạng trên tập train.</p><div class="chart tall"><canvas id="tenure-chart" role="img" aria-label="Tỷ lệ churn theo thời gian gắn bó"></canvas></div></article>
+        <article class="card glass"><h3>Gọi đúng người</h3><p class="muted">Liên hệ khách rủi ro cao trước thì gặp được bao nhiêu khách sẽ rời đi (tập test).</p><div id="gains" class="plot"></div></article>
+        <article class="card glass"><h3>Yếu tố quan trọng nhất</h3><p class="muted">Mức ảnh hưởng trung bình trong XGBoost (|SHAP|).</p><div class="chart tall"><canvas id="importance" role="img" aria-label="Mức quan trọng của từng yếu tố"></canvas></div></article>
+      </div>
+      <article class="card glass">
+        <h3>So sánh mô hình</h3>
+        <p class="muted">Cross-validation trên tập train. Brier càng thấp thì xác suất càng đáng tin. SMOTE và trọng số lớp không cải thiện xếp hạng rõ rệt mà làm xác suất lệch.</p>
+        <div class="table-wrap"><table id="comparison"><thead><tr><th scope="col">Mô hình</th><th scope="col">PR-AUC</th><th scope="col">ROC-AUC</th><th scope="col">Brier</th></tr></thead><tbody></tbody></table></div>
+      </article>
+    </section>
+  </main>
+
+  <footer>Dữ liệu mẫu IBM Telco về một công ty hư cấu. Kết quả là tương quan, không phải nhân quả.</footer>
+
+  <script src="/static/vendor/chartjs/chart.umd.min.js?v={{ version }}" defer></script>
+  <script src="/static/vendor/plotly/plotly-cartesian.min.js?v={{ version }}" defer></script>
+  <script src="/static/js/app.js?v={{ version }}" defer></script>
+</body>
+</html>
