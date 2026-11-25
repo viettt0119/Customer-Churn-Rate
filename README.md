@@ -80,7 +80,7 @@ Bắt thêm 75 khách churn, đổi lại báo nhầm thêm 108 khách. Ngưỡn
 
 - **API chặt chẽ:** từ chối giá trị lạ và dữ liệu mâu thuẫn (ví dụ không có Internet nhưng có `TechSupport`) thay vì âm thầm dự đoán sai. Số nằm ngoài khoảng đã học thì vẫn dự đoán, kèm cảnh báo.
 - **Hỏng sớm:** server không khởi động nếu thiếu mô hình, lệch phiên bản scikit-learn, hoặc mô hình không khớp schema của API.
-- **88 test tự động**, chạy được cả trong image Linux.
+- **89 test tự động**, chạy được cả trong image Linux.
 - **Thử độ tin cậy của bộ test:** cố tình cài 28 lỗi vào code. Lần đầu bộ test bắt được 26; hai lỗi lọt liên quan đến leakage và refit, và đều bị bắt sau khi bổ sung test.
 - **Lỗi thật do test tìm ra:** gửi `NaN` làm server trả 500. Đã sửa thành 422, và thông báo lỗi không còn chép lại dữ liệu khách hàng.
 - **Docker nhiều tầng:** train lúc build; image cuối không chứa CSV hay code train, không chạy bằng root.

@@ -10,7 +10,7 @@ import pandas as pd
 import sklearn
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -105,6 +105,11 @@ def invalid_request(request: Request, exc: RequestValidationError) -> JSONRespon
     return JSONResponse(status_code=422, content={"detail": detail})
 
 
+@app.get("/", include_in_schema=False)
+def root() -> RedirectResponse:
+    return RedirectResponse("/docs")
+
+
 @app.get("/health")
 def health() -> dict:
     """Server chỉ khởi động được khi đã nạp xong mô hình."""
@@ -137,3 +142,9 @@ def predict(customer: Customer, request: Request) -> Prediction:
         trained_at=b["meta"]["trained_at"],
         warnings=warnings,
     )
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="127.0.0.1", port=8080)
