@@ -1,10 +1,3 @@
-"""Tạo hình và số liệu cho README từ mô hình đã train.
-
-    .venv/Scripts/python.exe src/report.py      (cần requirements-dev.txt)
-
-Dùng mô hình chỉ học tập train (không phải bản refit), nên số trên test là trung thực.
-Chỉ để báo cáo: không có lựa chọn nào của mô hình dựa vào kết quả ở đây.
-"""
 
 import sys
 

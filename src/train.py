@@ -1,15 +1,3 @@
-"""Huấn luyện mô hình churn trên data/Telco-Customer-Churn.csv.
-
-Chạy từ thư mục gốc của repo:
-    .venv/Scripts/python.exe src/train.py
-
-Trình tự (tập test chỉ dùng đúng một lần, ở bước 4):
-    1. Tách train/test.
-    2. Chọn bộ feature bằng cross-validation trên train.
-    3. Chọn ngưỡng bằng dự đoán out-of-fold trên train.
-    4. Đo trên test.
-    5. Refit trên toàn bộ dữ liệu và lưu vào model/.
-"""
 
 import hashlib
 import json

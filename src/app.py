@@ -1,10 +1,4 @@
-"""API dự đoán churn.
 
-Chạy từ thư mục gốc của repo:
-    .venv/Scripts/python.exe -m uvicorn app:app --app-dir src --port 8080
-
-Tài liệu tương tác: http://127.0.0.1:8080/docs
-"""
 
 import os
 from contextlib import asynccontextmanager
@@ -76,10 +70,7 @@ class Prediction(BaseModel):
 
 
 def load_bundle(path: Path) -> dict:
-    """Nạp mô hình và dừng ngay nếu nó không khớp môi trường hoặc schema của API.
-
-    Chỉ nạp file do train.py của dự án tạo ra: file pickle lạ có thể chạy mã tùy ý.
-    """
+  
     if not path.exists():
         raise RuntimeError(f"Không thấy {path}. Hãy chạy src/train.py trước.")
     bundle = joblib.load(path)
@@ -109,8 +100,7 @@ app = FastAPI(title="Telco Churn API", version="1.0.0", lifespan=lifespan)
 
 @app.exception_handler(RequestValidationError)
 def invalid_request(request: Request, exc: RequestValidationError) -> JSONResponse:
-    """Không chép lại giá trị đầu vào: NaN/Infinity không ghi được ra JSON (sẽ thành lỗi 500),
-    và dữ liệu khách hàng không nên lọt vào thông báo lỗi."""
+   
     detail = [{k: e[k] for k in ("type", "loc", "msg")} for e in exc.errors()]
     return JSONResponse(status_code=422, content={"detail": detail})
 
