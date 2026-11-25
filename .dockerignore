@@ -1,0 +1,10 @@
+# Chặn tất cả, chỉ cho vào những gì Dockerfile cần (tránh lọt .env, .venv, .git).
+*
+!requirements.txt
+!requirements-dev.txt
+!pytest.ini
+!data/
+!src/
+!tests/
+**/__pycache__/
+**/*.pyc

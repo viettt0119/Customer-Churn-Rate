@@ -1,0 +1,3 @@
+# Giữ nguyên từng byte: model.pkl lưu mã băm của CSV này.
+data/*.csv -text
+*.pkl binary
